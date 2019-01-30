@@ -1,0 +1,11 @@
+UPDATE:
+There were a few issues that were sub-optimizing my random forest algorithm -- notably, I modified the original random forest algorithm so that we could have non-binary features (i.e. more than two possible bins). However, this caused a problem as many of my features had very different values. Hence, I binned the values (e.g. Truncated the volume data (affects OBV feature) so that we can build better decision trees). This can be seen by the parameter TRUNCONST = 10 in FEATURE.py. 
+
+My OBV feature in FEATURE.py also had a huge issue that was not detected previously. This has been rectified. 
+
+Added in DEBUG.py that helps me run basic sanity check on the data set (in general, this updated codebase has more checks in place) as I had quite some debugging to do. Now, this code is able to not just predict the decision, but also the price after k days (the later is more complicated as it is no longer a binary classifier).
+
+This codebase has been explored for various values of k, and different stocks.
+
+MOVING FORWARD:
+I will implement kNN as my third method to see how it performs. I will also start drafting the final report since I have been doing a lot of literature review the past few weeks. 
