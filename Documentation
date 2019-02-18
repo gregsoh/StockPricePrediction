@@ -1,0 +1,5 @@
+UPDATE:
+Implemented KNN once again with several options available (i.e. option 1: if we are deciding whether to buy based on the price k days later and option 2: predicting the actual price k days later). The code can be seen in KNN.py. There is also an additional option to do distance weighting where we do not take the mean but the weighted mean. 
+
+MOVING FORWARD:
+I will next code up a LSTM from scratch.

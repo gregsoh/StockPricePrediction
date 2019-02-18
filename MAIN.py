@@ -1,6 +1,7 @@
 from MA import EMA, SMA
 from FEATURE import FEATURE
 from DT import DT
+from KNN import KNN
 from DEBUG import CHECKDATA
 from datetime import datetime
 import fix_yahoo_finance as yf
@@ -128,12 +129,43 @@ def RF(data, forecastType, days):
     newData = FEATURE(data)
     CHECKDATA(newData)
     #Step 4: bagging/ bootstrap aggregating
-    # print(newData)
     train, test = newData[ : (len(newData) * 7) // 10], newData[(len(newData) * 3) // 10 : ] #70% train, 30% test
     DS = bagging(train, 15, len(train) // 3) # Second parameter should be odd, otherwise we may receive some error
     #Step 5: Building the decision trees
     err = DT(DS, test, features, "Target", True, "Decision") if forecastType == 1 else DT(DS, test, features, "Target", True, "Prices")
     return err
+
+'''
+KNearestNeighbor: KNN calling function
+Input 
+    data: data
+    k: parameter for the number of nearest neighbor we will be looking at
+    numDays: predicitng price numDays later
+    forecastType: forecast whether price rise after k days or investment decision based on prices k days later (set to 1); forecast prices after k days (set to 2)
+    weightedKNN: boolean to indicate if we want weighted
+    MKNN: Modified KNN
+Ouput
+    return error
+'''
+def KNearestNeighbor(data, k, numDays, forecastType, weightedKNN, MKNN):
+    def targetOne(d, numDays):
+        tar = []
+        for itr in range(len(d.Close) - numDays):
+            tar.append(1) if d['Close'][itr + numDays] - d['Close'][itr] > 0 else tar.append(-1)
+        d = d[ : len(d) - numDays]
+        d = d.assign(Target = tar)
+        return d
+    def targetTwo(d, numDays):
+        tar = []
+        for itr in range(len(d.Close) - numDays):
+            tar.append(round(d['Close'][itr + numDays]))
+        d = d[ : len(d) - numDays]
+        d = d.assign(Target = tar)
+        return d
+    data = targetOne(data, numDays) if forecastType == 1 else targetTwo(data, numDays)
+    data = data.round(2)
+    train, test = data[ : (len(data) * 7) // 10], data[(len(data) * 3) // 10 : ] #70% train, 30% test
+    return KNN(train, test, k, True, forecastType, weightedKNN, MKNN)
 
 '''
 MainFn: main function
@@ -159,5 +191,6 @@ def mainFn():
     #optimalWinSize(SPMedium)
     #movingAverages(12, SPShort)
     #MAApplication(12, 100, SP) # Typical small window period is 12, 26 and typical long window period is 100, 200
-    RF(SPMedium, 1, 5)
+    #RF(SPMedium, 1, 5)
+    print(KNearestNeighbor(SPShort, 5, 10, 1, True, True))
 mainFn()

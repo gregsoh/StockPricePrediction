@@ -54,7 +54,7 @@ Input
     predVal: predicated value
     yAxisLabel: the label for y_axis
 Output
-    graph
+    graph of value against date
 '''
 def drawGraph(trueVal, predVal, yAxisLabel):
     fig, ax = plt.subplots()
