@@ -1,12 +1,10 @@
-import math
-from MSE import MSE
-from DEBUG import CHECKDATA, CHECKVALUES
+'''
+This file handles most of the main code for the implementation of the random forest
+'''
+from MEASURE import MSE
+from DEBUG import DT_CHECKVALUES
 from statistics import mode, mean
-import matplotlib.pyplot as plt
-import pandas as pd
-import random
-import matplotlib.dates as mdates
-import numpy as np
+import matplotlib.pyplot as plt, pandas as pd, random, matplotlib.dates as mdates, numpy as np, math
 
 '''
 RF: Random Forest main code
@@ -14,60 +12,37 @@ Input
     train: train set
     test: test set
     features: features we are considering
-    target: what is our target
-    drawG: should we draw graph? 
-    yAxisLabel: what is the y_axis of the graph? 
+    forecastType: forecast type (1 if its boolean decision to invest based on prices k days later and 2 if its predicting the price k days later)
 Output
-    returns mean squared error
+    returns mean squared error and the predicted value
 '''
-def DT(train, test, features, target, drawG, yAxisLabel):
-    trueVal = test[target]
+def DT(train, test, features, forecastType):
+    trueVal, target = test['Target'], 'Target'
     numTrees = len(train)
     track, predVal = [[] for itr in range(len(trueVal))], [0] * len(trueVal)
     for itr in range(numTrees):
         random.shuffle(features)
-        if yAxisLabel == "Decision": 
-            builtTree = ID3(train[itr], train[itr], features[ : len(features) // 2], target, True)
+        if forecastType == 1: 
+            builtTree = ID3(train[itr], train[itr], features[ : len(features) // 2], True)
         else:
-            builtTree = ID3(train[itr], train[itr], features[ : len(features) // 2], target, False)
+            builtTree = ID3(train[itr], train[itr], features[ : len(features) // 2], False)
         try:
             default = mode(train[itr][target])
         except:
-            default = mean(train[itr][target]) if yAxisLabel != "Decision" else random.choice([-1, 1])
+            default = mean(train[itr][target]) if forecastType == 2 else random.choice([-1, 1])
         pred = findingPred(test, builtTree, default)
+        if len(pred) == 0:
+            print(builtTree, test)
+        DT_CHECKVALUES(pred, False)
         for idx, itm in enumerate(pred):
             track[idx].append(itm)
     for idx, itr in enumerate(track):
         try: 
             predVal[idx] = mode(itr)
         except:
-            predVal[idx] = random.choice([-1, 1]) if yAxisLabel == "Decision" else mean(itr)
-    CHECKVALUES(predVal, yAxisLabel == "Decision")
-    if drawG:
-        drawGraph(trueVal, predVal, yAxisLabel)
-    return MSE(trueVal, predVal)
-
-'''
-drawGraph: draw the graph of predicted versus actual
-Input
-    trueVal: true value
-    predVal: predicated value
-    yAxisLabel: the label for y_axis
-Output
-    graph of value against date
-'''
-def drawGraph(trueVal, predVal, yAxisLabel):
-    fig, ax = plt.subplots()
-    x_axis = trueVal.index.tolist()
-    ax.plot(x_axis, trueVal, label = "True", linewidth = 0.3, color = 'c')
-    ax.plot(x_axis, predVal, label = "Predicted", linewidth = 0.3, color = 'm')
-    plt.xlabel('Dates'), plt.ylabel(yAxisLabel), plt.legend(), plt.title('Random Forest')
-    years = mdates.YearLocator()  # every month
-    xFmt = mdates.DateFormatter('20%y')
-    ax.xaxis.set_major_locator(years)
-    ax.xaxis.set_major_formatter(xFmt)
-    plt.savefig('RF' + yAxisLabel + '.png')
-    plt.show()
+            predVal[idx] = random.choice([-1, 1]) if forecastType == 1 else mean(itr)
+    DT_CHECKVALUES(predVal, forecastType == 1)
+    return MSE(trueVal, predVal), predVal
 
 '''
 findingPred: Finding predicted value on unseen data
@@ -86,7 +61,7 @@ def findingPred(testData, tree, default):
     return predVal['predicted']
 
 '''
-Predict: takes into account 
+Predict: helper function for findingPred
 Input
     queries: test dataset
     tree: builtTree from ID3
@@ -111,18 +86,18 @@ def predict(q, tree, default):
                 return result
 
 '''
-ID3: using ID3 algorithm to build tree which uses Entropy and Information Gain
+ID3: using ID3 algorithm to build tree, uses Entropy and Information Gain
 Input
     data: spliced data based on node conditions
     oriData: the original data set
     features: the features we will consider (decreases with each depth of tree)
-    target: val we are predicting is "Target"
     binary: is this binary classifier
     parentNode: to keep track of our parent 
 Output
     tree represented in dictionary form
 '''
-def ID3(data, oriData, features, target, binary, parentNode = None):
+def ID3(data, oriData, features, binary, parentNode = None):
+    target = "Target"
     if len(set(data[target])) == 1: # only one possible value
         return data[target][0]
     elif len(data) == 0: # if there is no more data left
@@ -144,7 +119,7 @@ def ID3(data, oriData, features, target, binary, parentNode = None):
             uniqueVal.add(val)
         for val in uniqueVal:
             subData = data.loc[data[bestFeature] == val]
-            subtree = ID3(subData, oriData, newFeatures, target, binary, parentNode)
+            subtree = ID3(subData, oriData, newFeatures, binary, parentNode)
             tree[bestFeature][val] = subtree
         return tree
 

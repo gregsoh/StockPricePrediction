@@ -1,61 +1,56 @@
-from MSE import MSE
+'''
+This file consists of different moving averages algorithms. 
+'''
+from MEASURE import MSE, LMSE
 
 '''
 SMA: Simple Moving Average
 Input
-    data: processed data from first EMA
-    numDays: window size for moving average
-    newData: boolean indicating whether we want to return transformed data set (alternative: MSE)
+    d: yahoo finance data in MAIN.py 
+    w: window size for moving average
+    rv: when rv = True, return transformed data set (else return MSE)
+    er: error fn (0: MSE; 1: log MSE)
 Output
-    returns dataset or MSE depending on third parameter
+    returns dataset or MSE depending on third param
 '''
-def SMA(data, numDays, newData):
-    numData = len(data)
-    sim = [0] * (numData - numDays)
-    for itr in range(numDays, numData):
-        tdy = itr - numDays
-        sim[tdy] = sum(data[itr - numDays : itr]) / numDays
-    return sim if newData else MSE(data[numDays:], sim)
+def SMA(d, w, rv, er = 0):
+    num = len(d)
+    sim = [d[0] if itr == 0 else sum(d[ : itr]) / len(d[ : itr]) if itr <= w else sum(d[itr - w : itr]) / len(d[itr - w : itr]) for itr in range(num)]
+    return sim if rv else MSE(d, sim) if er == 0 else LMSE(d, sim)
 
 '''
-EMA: Exponential Smoothing / Exponential Moving Average
+EMA: Exponential Moving Average
 Input
-    data: yahoo finance data in MAIN.py 
-    numDays: window size for moving average
+    d: yahoo finance data in MAIN.py 
+    w: window size for moving average
+    a: smoothing coefficient
     db: boolean indicating whether double moving average
-    newData: boolean indicating whether we want to return transformed data set (alternative: MSE)
+    rv: when rv = True, return transformed data set (else return MSE)
+    er: error fn (0: MSE; 1: log MSE)
 Output
-    returns smoothed data set or mean squared error depending on 4th parameter
+    returns smoothed data set or MSE depending on 4th param
 '''
-def EMA(data, numDays, db, newData):
-    numData = len(data)
-    if numData < numDays:
-        raise ValueError('Data insufficient')
-    exp = [0] * (numData - numDays)
-    exp[0] = sum(data[ : numDays]) / numDays
-    alpha = 2 / (numDays + 1) #smoothing coefficient
-    for itr in range(numDays + 1, numData):
-        tdy = itr - numDays
-        exp[tdy] = (data[itr - 1] - exp[tdy - 1]) * alpha + exp[tdy - 1]
-    if newData:
-        return DEMA(exp, numDays) if db else exp
-    return MSE(data[numDays * 2:], DEMA(exp, numDays)) if db else MSE(data[numDays:], exp)
+def EMA(d, w, a, db, rv, er = 0):
+    num = len(d)
+    exp = [d[itr] if itr == 0 else sum(d[ : itr]) / len(d[ : itr]) if itr <= w else 0 for itr in range(num)]
+    for itr in range(w + 1, num):
+        exp[itr] = (d[itr - 1] - exp[itr - 1]) * a + exp[itr - 1]
+    if db:
+        return DEMA(exp, w, a) if rv else MSE(d, DEMA(exp, w, a)) if er == 0 else LMSE(d, DEMA(exp, w, a))
+    return exp if rv else MSE(d, exp) if er == 0 else LMSE(d, exp)
+
 '''
 DEMA: Double Exponential Moving Average
 Input
-    data: processed data from first EMA
-    numDays: window size for moving average
+    d: processed data from first EMA
+    w: window size for moving average from EMA
+    a: smoothing coefficient
 Output
-    returns dataset after applying double EMA
+    returns transformed dataset
 '''
-def DEMA(data, numDays):
-    numData = len(data)
-    if numData < numDays:
-        raise ValueError('Data insufficient')
-    exp = [0] * (numData - numDays)
-    exp[0] = sum(data[0 : numDays]) / numDays 
-    alpha = 2 / (numDays + 1)
-    for itr in range(numDays + 1, numData):
-        tdy = itr - numDays
-        exp[tdy] = (data[itr - 1] - exp[tdy - 1]) * alpha + exp[tdy - 1]
-    return [2 * data[idx + numDays] - itr for idx, itr in enumerate(exp)]
+def DEMA(d, w, a):
+    num = len(d)
+    exp = [d[itr] if itr == 0 else sum(d[ : itr]) / len(d[ : itr]) if itr <= w else 0 for itr in range(num)] 
+    for itr in range(w + 1, num):
+        exp[itr] = (d[itr - 1] - exp[itr - 1]) * a + exp[itr - 1]
+    return [2 * d[idx] - itr for idx, itr in enumerate(exp)]

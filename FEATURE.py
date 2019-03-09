@@ -1,9 +1,17 @@
+'''
+This python file codes the features used in the random forests. They are
+    |- Relative Strength Index
+    |- Stochastic Oscillator
+    |- Moving Average Convergence Divergence
+    |- Price Rate of Change
+    |- On-balance volume
+All these functions are called by FEATURE method in this code base
+'''
 from MA import EMA, SMA
+from DEBUG import DT_DATAENOUGH
 import numpy as np
-'''
-This truncating constant is tobin the values so that the decision tree will not have too many child nodes (Most values are rounded to the nearest tens place)
-'''
-TRUNCONST = 10
+
+TRUNCONST = 10 #This truncating constant is to bin the values so that the decision tree will not have too many child nodes (Most values are rounded to the nearest "tens" place)
 
 '''
 RSI: Relative Strength Index
@@ -14,15 +22,14 @@ Output
 '''
 def RSI(data):
     numData = len(data)
-    if numData < 15:
-        raise ValueError('Data insufficient')
-    gainOrLoss, RS = [0] * (numData - 1), [0] * (numData - 1 - 14)
+    DT_DATAENOUGH(data, 15)
+    GL, RS = [0] * (numData - 1), [0] * (numData - 1 - 14) #GL is gain or loss
     for itr in range(1, numData):
-        gainOrLoss[itr - 1] = data[itr] - data[itr - 1]
+        GL[itr - 1] = data[itr] - data[itr - 1]
     for itr in range(14, numData - 1):
         gain, loss = [], []
         for idx in range(14):
-            gain.append(gainOrLoss[itr - idx - 1]) if gainOrLoss[itr - idx - 1] > 0 else loss.append(gainOrLoss[itr - idx - 1])
+            gain.append(GL[itr - idx - 1]) if GL[itr - idx - 1] > 0 else loss.append(GL[itr - idx - 1])
         RS[itr - 14] = (sum(gain) / len(gain)) / (-sum(loss) / len(loss))
     RSI = [((100 - 100 / (1 + itr)) // TRUNCONST) * TRUNCONST for itr in RS]
     return RSI
@@ -37,8 +44,7 @@ Output
 '''
 def SO(data, wil):
     numData = len(data.Close)
-    if numData < 14:
-        raise ValueError('Data insufficient')
+    DT_DATAENOUGH(data, 14)
     RVAL = [0] * (numData - 14 + 1)
     for itr in range(13, numData):
         trackLow, trackHigh = data.Low[itr - 13 : itr + 1], data.High[itr - 13 : itr + 1]
@@ -52,13 +58,13 @@ def SO(data, wil):
 MACD: Moving Average Convergence Divergence
 Input
     data: yahoo finance data in MAIN.py 
-    winOne: the shorter window; winTwo: the longer window 
+    w_short: the shorter window; w_long: the longer window 
 Output
     returns data set with MACD values
 '''
-def MACD(data, winOne, winTwo):
-    MA_1, MA_2 = EMA(data, winOne, False, True), EMA(data, winTwo, False, True)
-    return [(((x - y) // TRUNCONST) * TRUNCONST) for x, y in zip(MA_1[winTwo - winOne : ], MA_2)]
+def MACD(data, w_short, w_long):
+    MA_1, MA_2 = EMA(data, w_short, 2 / (w_short + 1), False, True), EMA(data, w_long, 2 / (w_long + 1), False, True)
+    return [(((x - y) // TRUNCONST) * TRUNCONST) for x, y in zip(MA_1[w_long - w_short : ], MA_2)]
 
 '''
 PRC: Price Rate of Change
@@ -96,7 +102,7 @@ def OBV(data):
         else:
             OBVData[itr] = OBVData[itr - 1]
         if type(OBVData[itr]) != float and type(OBVData[itr]) != np.float64:
-            raise ValueError('OBV type has an issue')
+            raise ValueError('FEATURE.py: OBV has an issue')
     return OBVData
 
 '''
@@ -107,18 +113,19 @@ Output
     returns the processed dataset or PD
 '''
 def FEATURE(data):
-    winShort, winLong = 12, 26
+    w_Short, w_Long, numDays = 12, 26, 12
     F1 = RSI(data.Close) # Feature 1: Relative Strength Index
     F2 = SO(data, False) # Featue 2: Stochastic Oscillator
     F3 = SO(data, True) # Feature 3: Williams %R, related to feature 2 
-    F4 = MACD(data.Close, winShort, winLong) # Feature 4: Moving average convergence divergence
-    F5 = PRC(data.Close, 12) # Feature 5: Price Rate of Change
+    F4 = MACD(data.Close, w_Short, w_Long) # Feature 4: Moving average convergence divergence
+    F5 = PRC(data.Close, numDays) # Feature 5: Price Rate of Change
     F6 = OBV(data) # Feature 6: On-balance Volume
-    PD = data[winLong : ] 
-    PD = PD.assign(RSI = F1[winLong - 15 : ])
-    PD = PD.assign(SO = F2[winLong - 13 : ])
-    PD = PD.assign(WIL = F3[winLong - 13 : ])
-    PD = PD.assign(MACD = F4)
-    PD = PD.assign(PRC = F5[winLong - winShort : ])
-    PD = PD.assign(OBV = F6[winLong : ])
+    PD = data[w_Long : ] 
+    # print(len(F1[w_Long - 15 : ]), len(F2[w_Long - 13 : ]), len(F3[w_Long - 13 : ]), len(F4[w_Short : ]), len(F5[w_Long - numDays : ]), len(F6[w_Long : ]))
+    PD = PD.assign(RSI = F1[w_Long - 15 : ])
+    PD = PD.assign(SO = F2[w_Long - 13 : ])
+    PD = PD.assign(WIL = F3[w_Long - 13 : ])
+    PD = PD.assign(MACD = F4[w_Short : ])
+    PD = PD.assign(PRC = F5[w_Long - numDays : ])
+    PD = PD.assign(OBV = F6[w_Long : ])
     return PD
